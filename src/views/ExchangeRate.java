@@ -1,6 +1,6 @@
 package views;
 
-import java.util.Date;
+import java.time.LocalDate;
 import models.Currency;
 
 /**
@@ -9,19 +9,19 @@ import models.Currency;
  */
 public class ExchangeRate {
     
-    private final Date date;
+    private final LocalDate date;
     private final double rate;
     private final Currency from;
     private final Currency to;
 
-    public ExchangeRate(Date date, double rate, Currency from, Currency to) {
+    public ExchangeRate(LocalDate date, double rate, Currency from, Currency to) {
         this.date = date;
         this.rate = rate;
         this.from = from;
         this.to = to;
     }
 
-    public Date getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
