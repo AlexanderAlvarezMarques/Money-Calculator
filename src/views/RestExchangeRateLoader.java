@@ -5,10 +5,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import models.Currency;
 
 /**
@@ -22,90 +22,65 @@ public class RestExchangeRateLoader {
     public RestExchangeRateLoader(List<Currency> currencies) {
         this.currencies = currencies;
     }
-    
+
     public List<ExchangeRate> load() {
+        List<ExchangeRate> list = new ArrayList<>();
         
-        try {
-            return generator(new ArrayList<>());
-        } catch (Exception e) {
-            return null;
-        }
+        for (Currency currency : currencies)
+            list.addAll(loadExchangeRatesOfCurrency(currency));
+        
+        return list;
     }
 
-    private List<ExchangeRate> generator(ArrayList<ExchangeRate> list) throws Exception {
-
-        Date exchangeDate = new Date();
+    private List<ExchangeRate> loadExchangeRatesOfCurrency(Currency source) {
+        List<ExchangeRate> list = new ArrayList<>();
+        JsonData data = loadJsonData(source);
         
-        for (int i = 0; i < currencies.size(); i++) {
-            
-            HashMap<String, Double> rates = getRates(currencies.get(i).getCode());
-            
-            for (int j = 0; j < currencies.size(); j++) {
-                
-                if (currencies.get(i).equals(currencies.get(j))) continue;
-                
-                list.add(new ExchangeRate(
-                        exchangeDate,
-                        rates.get(currencies.get(j).getCode()),
-                        currencies.get(i),
-                        currencies.get(j)
-                    ));
-            }
+        for (String code : data.rates.keySet()) {
+            Currency target = findCurrency(code);
+            list.add(new ExchangeRate(data.date, data.rates.get(code), source, target));
         }
         
         return list;
     }
 
-    private HashMap<String, Double> getRates(String base) {
-        
+
+    private JsonData loadJsonData(Currency currency) {
         try {
-            URL url = new URL("https://api.exchangeratesapi.io/latest?base=" + base);
-        
-            JsonRates jsonRates = getJsonRates(url);
-            
-            return jsonRates.getRates();
-            
+            return loadJsonData(new URL("https://api.exchangeratesapi.io/latest?base=" + currency.getCode()));
         } catch (IOException e) {
             System.out.println("Error en la lectura del fichero JSON");
             System.out.println("Error del sistema:\n" + e.getMessage());
+            return null;
         }
+    }
+
+    private JsonData loadJsonData(URL url) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()))) {
+            return new Gson().fromJson(reader.readLine(), JsonData.class);
+        }
+    }
+
+    private Currency findCurrency(String code) {
+        
+        for (Currency currency : currencies) 
+            if (currency.getCode().equals(code)) return currency;
         
         return null;
+        
     }
 
-    private JsonRates getJsonRates(URL url) throws IOException {
-        
-        String jsonRead;
-        
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()))) {
-            jsonRead = reader.readLine();
+    private static class JsonData {
+        final Map<String, Double> rates;
+        final String base;
+        final LocalDate date;
+
+        public JsonData(Map<String, Double> rates, String base, LocalDate date) {
+            this.rates = rates;
+            this.base = base;
+            this.date = date;
         }
-        
-        return new Gson().fromJson(jsonRead, JsonRates.class);
-    }
-}
 
-class JsonRates {
-    
-    private final HashMap<String, Double> rates;
-    private final String base;
-    private final String symbol;
-
-    public JsonRates(HashMap<String, Double> rates, String base, String symbol) {
-        this.rates = rates;
-        this.base = base;
-        this.symbol = symbol;
     }
 
-    public HashMap<String, Double> getRates() {
-        return rates;
-    }
-
-    public String getBase() {
-        return base;
-    }
-
-    public String getSymbol() {
-        return symbol;
-    }
 }
